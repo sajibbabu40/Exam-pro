@@ -47,6 +47,13 @@ io.on('connection', (socket) => {
     }
   });
 });
+app.get('/dashboard', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+
+app.get('/exam', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'exam.html'));
+});
 
 server.listen(process.env.PORT || 3000, () => console.log("Server Live!"));
 
