@@ -1,1 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Teacher Admin Panel</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body { background: #f4f7f6; padding: 50px; text-align: center; font-family: 'Segoe UI', sans-serif; }
+        .box { background: white; padding: 40px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        button { background: #1a73e8; color: white; border: none; padding: 15px 30px; border-radius: 8px; cursor: pointer; width: 100%; font-size: 16px; font-weight: bold; }
+        #linkArea { margin-top: 25px; padding: 15px; background: #e8f0fe; border-radius: 8px; display: none; word-break: break-all; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2>🎓 Exam Link Generator</h2>
+        <input type="text" id="formUrl" placeholder="Paste Google Form Link Here">
+        <input type="number" id="duration" placeholder="Set Time (Minutes)">
+        <button onclick="generateLink()">Generate Pro Link</button>
+
+        <div id="linkArea">
+            <p>Share this link with students:</p>
+            <strong id="finalLink" style="color: #d93025;"></strong>
+        </div>
+    </div>
+
+    <script>
+        function generateLink() {
+            const formUrl = document.getElementById('formUrl').value;
+            const duration = document.getElementById('duration').value;
+            if(!formUrl || !duration) return alert("All fields are required!");
+
+            // বর্তমান ওয়েবসাইটের ডোমেইন নেওয়া
+            const baseUrl = window.location.origin;
+            const finalLink = `${baseUrl}/exam.html?form=${encodeURIComponent(formUrl)}&time=${duration}`;
+            
+            document.getElementById('linkArea').style.display = "block";
+            document.getElementById('finalLink').innerText = finalLink;
+        }
+    </script>
+</body>
+</html>
 
