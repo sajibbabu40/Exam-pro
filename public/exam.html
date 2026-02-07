@@ -3,63 +3,108 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Secure Exam Portal</title>
+  <title>Pro Exam Portal | Secure Mode</title>
   <script src="/socket.io/socket.io.js"></script>
   <link rel="stylesheet" href="style.css">
   <style>
-    body { background: #f0f2f5; font-family: 'Inter', sans-serif; overflow: hidden; }
-    #header { background: #fff; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e1e4e8; }
-    #timer { font-size: 24px; font-weight: 700; color: #ff3b30; background: #ffebeb; padding: 5px 15px; border-radius: 8px; }
+    body { margin: 0; background: #f4f7f6; font-family: 'Inter', sans-serif; overflow: hidden; }
+    #header { 
+      background: #fff; padding: 10px 25px; display: flex; 
+      justify-content: space-between; align-items: center; 
+      border-bottom: 2px solid #e1e4e8; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    #timer { 
+      font-size: 24px; font-weight: 800; color: #d93025; 
+      background: #fee2e2; padding: 8px 20px; border-radius: 10px; 
+      min-width: 100px; text-align: center;
+    }
+    .badge { background: #e8f0fe; color: #1a73e8; padding: 5px 12px; border-radius: 20px; font-weight: bold; font-size: 14px; }
     iframe { width: 100%; height: calc(100vh - 70px); border: none; }
-    #blocker { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #fff; z-index: 10000; text-align: center; padding-top: 150px; }
+    #blocker { 
+      display: none; position: fixed; top: 0; left: 0; 
+      width: 100%; height: 100%; background: white; 
+      z-index: 10000; text-align: center; padding-top: 15vh; 
+    }
   </style>
 </head>
-<body oncontextmenu="return false;"> <div id="header">
-    <div style="font-weight: bold; color: #1a73e8;">🛡️ PRO EXAM MODE</div>
-    <div id="timer">00:00</div>
+<body oncontextmenu="return false;" onselectstart="return false;">
+
+  <div id="header">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <span style="font-size: 20px;">🛡️</span>
+      <span class="badge">PRO EXAM MODE ACTIVE</span>
+    </div>
+    <div id="timer">--:--</div>
   </div>
 
-  <iframe id="googleForm" src="YOUR_GOOGLE_FORM_URL?embedded=true"></iframe>
+  <iframe id="googleForm" src=""></iframe>
 
   <div id="blocker">
-    <h1 style="font-size: 50px;">⏳ Time's Up!</h1>
-    <p style="font-size: 20px; color: #666;">Your responses have been recorded and the portal is now closed.</p>
+    <div style="font-size: 80px;">⌛</div>
+    <h1 style="font-size: 40px; color: #111;">Time is Up!</h1>
+    <p style="font-size: 18px; color: #666; max-width: 500px; margin: 20px auto;">
+      The examination window has closed. Your responses have been automatically processed.
+    </p>
+    <button onclick="window.location.reload()" style="padding: 12px 25px; background: #1a73e8; color: white; border: none; border-radius: 6px; cursor: pointer;">Return to Home</button>
   </div>
 
   <script>
     const socket = io();
-    const examId = "EXAM_123"; // ড্যাশবোর্ড থেকে আসবে
-    const studentName = "Rahim"; // ইনপুট থেকে আসবে
+    const urlParams = new URLSearchParams(window.location.search);
+    const formUrl = urlParams.get('form');
+    const duration = urlParams.get('time') || 10; // ডিফল্ট ১০ মিনিট
+    const examId = "EXAM_" + Math.floor(Math.random() * 1000); 
+    const studentName = "Student_" + Math.floor(Math.random() * 100);
 
-    socket.emit('startExam', { examId, duration: 30 }); // ১. টাইমার সেট (৩০ মিনিট)
+    // ১. ডাইনামিকলি ফর্ম এবং টাইম সেটআপ
+    if (formUrl) {
+      document.getElementById('googleForm').src = decodeURIComponent(formUrl);
+      socket.emit('startExam', { examId, duration: parseInt(duration) });
+    } else {
+      alert("No Exam Link Found! Use Dashboard to generate one.");
+    }
 
+    // ২. রিয়েল-টাইম টাইমার আপডেট
     socket.on('timerUpdate', (timeLeft) => {
       const m = Math.floor(timeLeft / 60);
       const s = timeLeft % 60;
       document.getElementById('timer').innerText = `${m < 10 ? '0'+m : m}:${s < 10 ? '0'+s : s}`;
+      
+      // শেষ ১ মিনিটে টাইমার লাল হয়ে ব্লিঙ্ক করবে
+      if(timeLeft < 60) {
+        document.getElementById('timer').style.animation = "blink 1s infinite";
+      }
     });
 
-    // ৪. অটো সাবমিট লজিক
+    // ৩. অটো সাবমিট লজিক
     socket.on('forceSubmit', () => {
       document.getElementById('googleForm').remove();
       document.getElementById('blocker').style.display = "block";
     });
 
-    // ৩. ট্যাব সুইচ ডিটেকশন (সাইলেন্টলি টিচারকে জানানো)
+    // ৪. ট্যাব সুইচ ট্র্যাকিং (সাইলেন্টলি টিচারকে রিপোর্ট যাবে)
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) {
         socket.emit('recordViolation', { examId, studentName });
+        console.log("Tab Switched!"); 
       }
     });
 
-    // ২. কপি-পেস্ট শর্টকাট বন্ধ
+    // ৫. কপি, পেস্ট, রাইট ক্লিক এবং সোর্স কোড দেখা বন্ধ
     window.addEventListener('keydown', (e) => {
-      if (e.ctrlKey && (e.key === 'c' || e.key === 'v' || e.key === 'u')) {
+      if (e.ctrlKey && (e.key === 'c' || e.key === 'v' || e.key === 'u' || e.key === 's' || e.key === 'p')) {
         e.preventDefault();
-        alert("Action Restricted!");
+        alert("This action is restricted in Pro Exam Mode!");
       }
     });
   </script>
+
+  <style>
+    @keyframes blink {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
+  </style>
 </body>
 </html>
-
