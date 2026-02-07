@@ -1,110 +1,63 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pro Exam Portal | Secure Mode</title>
-  <script src="/socket.io/socket.io.js"></script>
-  <link rel="stylesheet" href="style.css">
-  <style>
-    body { margin: 0; background: #f4f7f6; font-family: 'Inter', sans-serif; overflow: hidden; }
-    #header { 
-      background: #fff; padding: 10px 25px; display: flex; 
-      justify-content: space-between; align-items: center; 
-      border-bottom: 2px solid #e1e4e8; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+<script>
+  const socket = io();
+  const urlParams = new URLSearchParams(window.location.search);
+  const formUrl = urlParams.get('form');
+  const duration = urlParams.get('time') || 10; 
+  
+  // ইউনিক এক্সাম আইডি এবং স্টুডেন্ট আইডি জেনারেট (ট্র্যাকিংয়ের জন্য)
+  const examId = urlParams.get('examId') || "EXAM_" + Math.floor(Math.random() * 1000); 
+  const studentName = "Student_" + Math.floor(Math.random() * 100);
+
+  // ১. ডাইনামিকলি ফর্ম এবং টাইম সেটআপ
+  if (formUrl) {
+    document.getElementById('googleForm').src = decodeURIComponent(formUrl);
+    socket.emit('startExam', { examId, duration: parseInt(duration) });
+  } else {
+    alert("No Exam Link Found!");
+  }
+
+  // ২. রিয়েল-টাইম টাইমার আপডেট
+  socket.on('timerUpdate', (timeLeft) => {
+    const m = Math.floor(timeLeft / 60);
+    const s = timeLeft % 60;
+    document.getElementById('timer').innerText = `${m < 10 ? '0'+m : m}:${s < 10 ? '0'+s : s}`;
+    
+    if(timeLeft < 60) {
+      document.getElementById('timer').style.animation = "blink 1s infinite";
     }
-    #timer { 
-      font-size: 24px; font-weight: 800; color: #d93025; 
-      background: #fee2e2; padding: 8px 20px; border-radius: 10px; 
-      min-width: 100px; text-align: center;
-    }
-    .badge { background: #e8f0fe; color: #1a73e8; padding: 5px 12px; border-radius: 20px; font-weight: bold; font-size: 14px; }
-    iframe { width: 100%; height: calc(100vh - 70px); border: none; }
-    #blocker { 
-      display: none; position: fixed; top: 0; left: 0; 
-      width: 100%; height: 100%; background: white; 
-      z-index: 10000; text-align: center; padding-top: 15vh; 
-    }
-  </style>
-</head>
-<body oncontextmenu="return false;" onselectstart="return false;">
+  });
 
-  <div id="header">
-    <div style="display: flex; align-items: center; gap: 10px;">
-      <span style="font-size: 20px;">🛡️</span>
-      <span class="badge">PRO EXAM MODE ACTIVE</span>
-    </div>
-    <div id="timer">--:--</div>
-  </div>
+  // ৩. প্রো-লেভেল অটো সাবমিট (Universal Logic)
+  socket.on('forceSubmit', () => {
+    console.log("Auto-submitting responses...");
+    const iframe = document.getElementById('googleForm');
+    let currentSrc = iframe.src;
 
-  <iframe id="googleForm" src=""></iframe>
-
-  <div id="blocker">
-    <div style="font-size: 80px;">⌛</div>
-    <h1 style="font-size: 40px; color: #111;">Time is Up!</h1>
-    <p style="font-size: 18px; color: #666; max-width: 500px; margin: 20px auto;">
-      The examination window has closed. Your responses have been automatically processed.
-    </p>
-    <button onclick="window.location.reload()" style="padding: 12px 25px; background: #1a73e8; color: white; border: none; border-radius: 6px; cursor: pointer;">Return to Home</button>
-  </div>
-
-  <script>
-    const socket = io();
-    const urlParams = new URLSearchParams(window.location.search);
-    const formUrl = urlParams.get('form');
-    const duration = urlParams.get('time') || 10; // ডিফল্ট ১০ মিনিট
-    const examId = "EXAM_" + Math.floor(Math.random() * 1000); 
-    const studentName = "Student_" + Math.floor(Math.random() * 100);
-
-    // ১. ডাইনামিকলি ফর্ম এবং টাইম সেটআপ
-    if (formUrl) {
-      document.getElementById('googleForm').src = decodeURIComponent(formUrl);
-      socket.emit('startExam', { examId, duration: parseInt(duration) });
-    } else {
-      alert("No Exam Link Found! Use Dashboard to generate one.");
+    // ফর্ম লিঙ্ক থেকে /viewform ফেলে দিয়ে /formResponse যোগ করে সাবমিট ট্রিগার করা
+    if (currentSrc.includes('/viewform')) {
+        let submitUrl = currentSrc.replace('/viewform', '/formResponse');
+        iframe.src = submitUrl + "?embedded=true&entry.status=auto-submitted"; 
     }
 
-    // ২. রিয়েল-টাইম টাইমার আপডেট
-    socket.on('timerUpdate', (timeLeft) => {
-      const m = Math.floor(timeLeft / 60);
-      const s = timeLeft % 60;
-      document.getElementById('timer').innerText = `${m < 10 ? '0'+m : m}:${s < 10 ? '0'+s : s}`;
-      
-      // শেষ ১ মিনিটে টাইমার লাল হয়ে ব্লিঙ্ক করবে
-      if(timeLeft < 60) {
-        document.getElementById('timer').style.animation = "blink 1s infinite";
-      }
-    });
+    // ৩ সেকেন্ড পর স্ক্রিন ব্লক করে দেওয়া
+    setTimeout(() => {
+        iframe.style.display = "none";
+        document.getElementById('blocker').style.display = "block";
+    }, 3000);
+  });
 
-    // ৩. অটো সাবমিট লজিক
-    socket.on('forceSubmit', () => {
-      document.getElementById('googleForm').remove();
-      document.getElementById('blocker').style.display = "block";
-    });
-
-    // ৪. ট্যাব সুইচ ট্র্যাকিং (সাইলেন্টলি টিচারকে রিপোর্ট যাবে)
-    document.addEventListener("visibilitychange", () => {
-      if (document.hidden) {
-        socket.emit('recordViolation', { examId, studentName });
-        console.log("Tab Switched!"); 
-      }
-    });
-
-    // ৫. কপি, পেস্ট, রাইট ক্লিক এবং সোর্স কোড দেখা বন্ধ
-    window.addEventListener('keydown', (e) => {
-      if (e.ctrlKey && (e.key === 'c' || e.key === 'v' || e.key === 'u' || e.key === 's' || e.key === 'p')) {
-        e.preventDefault();
-        alert("This action is restricted in Pro Exam Mode!");
-      }
-    });
-  </script>
-
-  <style>
-    @keyframes blink {
-      0% { opacity: 1; }
-      50% { opacity: 0.5; }
-      100% { opacity: 1; }
+  // ৪. ট্যাব সুইচ ট্র্যাকিং (টিচারের ড্যাশবোর্ডে সাইলেন্টলি রিপোর্ট যাবে)
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      socket.emit('recordViolation', { examId, studentName });
     }
-  </style>
-</body>
-</html>
+  });
+
+  // ৫. কপি-পেস্ট এবং রাইট ক্লিক লক
+  window.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && (e.key === 'c' || e.key === 'v' || e.key === 'u' || e.key === 's')) {
+      e.preventDefault();
+      alert("This action is restricted!");
+    }
+  });
+</script>
